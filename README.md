@@ -1,4 +1,3 @@
-# Coderen-PO-Alex-en-Ethan
 import pygame
 import math
 import random
@@ -24,6 +23,7 @@ BLACK = (0, 0, 0)
 RED = (255, 60, 60)
 CYAN = (80, 255, 255)
 GREEN = (100, 255, 100)
+ORANGE = (255, 165, 0)
 
 font = pygame.font.SysFont("consolas", 28)
 fontbig = pygame.font.SysFont("consolas", 56)
@@ -118,7 +118,7 @@ class PlayerBullet:
 
 
 class EnemyBullet:
-    def __init__(self, x, y, dx, dy):
+    def __init__(self, x, y, dx, dy, radius=4):
 
         self.x = x
         self.y = y
@@ -126,8 +126,8 @@ class EnemyBullet:
         self.dx = dx
         self.dy = dy
 
-        self.radius = 4
-        
+        self.radius = radius
+
         self.grazed = False
 
     def update(self):
@@ -136,6 +136,7 @@ class EnemyBullet:
 
     def draw(self, screen):
         pygame.draw.circle(screen, RED, (int(self.x), int(self.y)), self.radius)
+        
 
 
 # =====================
@@ -201,7 +202,7 @@ class EnemyStandard:
     def draw(self, screen):
         pygame.draw.circle(screen, GREEN, (int(self.x), int(self.y)), self.radius)
         
-        
+# 3 is better than 1.      
 class EnemyBurst:
     def __init__(self):
 
@@ -259,7 +260,50 @@ class EnemyBurst:
     def draw(self, screen):
         pygame.draw.circle(screen, CYAN, (int(self.x), int(self.y)), self.radius)
         
+
+# Sandwich spread, because you're toast.
+class EnemySpread:
+    def __init__(self):
+        self.x = 350
+        self.y = 400
+        self.speed = 3
+        self.radius = 14
+        self.hp = 20
+        self.score_value = 100
+
+        self.shot_timer = 0
+        self.shot_delay = 120
         
+    def update(self, enemy_bullets):        
+        if self.shot_timer > 0:
+            self.shot_timer -= 1
+
+        else:
+
+            directions = [
+                (0, -4),    # up
+                (0, 4),     # down
+                (-4, 0),    # left
+                (4, 0),     # right
+
+                (-3, -3),   # up-left
+                (3, -3),    # up-right
+                (-3, 3),    # down-left
+                (3, 3)      # down-right
+            ]
+
+            for dx, dy in directions:
+
+                enemy_bullets.append(
+                    EnemyBullet(self.x, self.y, dx, dy, 10)
+                )
+
+            self.shot_timer = self.shot_delay
+
+        
+        
+    def draw(self, screen):
+        pygame.draw.circle(screen, ORANGE, (int(self.x), int(self.y)), self.radius)
 
 
 # =====================
@@ -269,7 +313,7 @@ class EnemyBurst:
 player = Player()
 player_bullets = []
 enemy_bullets = []
-enemies = [EnemyDummy(), EnemyStandard(), EnemyBurst()]
+enemies = [EnemyDummy(), EnemyStandard(), EnemyBurst(), EnemySpread()]
 
 def reset_game():
 
