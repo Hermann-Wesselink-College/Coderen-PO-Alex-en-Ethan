@@ -1,6 +1,6 @@
 import pygame
 import math
-import random
+import random #If my memory does not disappoint me, this is only used like, 5 times. and only in enemy code.
 
 pygame.init()
 clock = pygame.time.Clock()
@@ -24,6 +24,8 @@ RED = (255, 60, 60)
 CYAN = (80, 255, 255)
 GREEN = (100, 255, 100)
 ORANGE = (255, 165, 0)
+PINK = (100, 40, 80)
+PURPLE = (100, 0, 100)
 
 font = pygame.font.SysFont("consolas", 28)
 fontbig = pygame.font.SysFont("consolas", 56)
@@ -47,8 +49,8 @@ class Player:
         self.invincible_timer = 0
         self.invincible_length = 120
 
-        self.lives = 5
-        self.score = 0
+        self.lives = 3
+        self.score = 5000
 
     def update(self, keys):
         speed = 2 if keys[pygame.K_LSHIFT] else 5
@@ -65,9 +67,12 @@ class Player:
         if keys[pygame.K_DOWN] or keys[pygame.K_s]:
             dy += 1
             
-        #insta-death, debug purposes
+        #debug purposes, removed in finished version
         if keys[pygame.K_q]:
             self.lives = 0
+            
+        if keys[pygame.K_e]:
+            game_state = "clear"
 
         if dx and dy:
             dx *= 0.707
@@ -118,7 +123,7 @@ class PlayerBullet:
 
 
 class EnemyBullet:
-    def __init__(self, x, y, dx, dy, radius=4):
+    def __init__(self, x, y, dx, dy, radius=6):
 
         self.x = x
         self.y = y
@@ -143,6 +148,7 @@ class EnemyBullet:
 # ENEMIES
 # =====================
 
+#Now we're beyond testing, Dummy doesn't exist anymore. Poor Dummy.
 class EnemyDummy:
     def __init__(self):
         self.x = 350
@@ -156,63 +162,252 @@ class EnemyDummy:
         self.x += self.speed
         if self.x < 50 or self.x > 650:
             self.speed *= -1
+            
+    def on_death(self):
+        pass
         
     def draw(self, screen):
         pygame.draw.circle(screen, RED, (int(self.x), int(self.y)), self.radius)
-
-
-class EnemyStandard:
-    def __init__(self):
-        self.x = 350
-        self.y = 300
-        self.speed = 3
+        
+#Wait this isn't an enemy.
+class EnemyRecovery:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.speed = 1.5
         self.radius = 10
-        self.hp = 20
-        self.score_value = 100
+        self.hp = 10
+        if player.score < 5000:
+            self.score_value = 5000 - player.score
+        else:
+            self.score_value = 0
+            
+    def update(self, enemy_bullet):
+        self.x += self.speed
+        
+    def on_death(self):
+        player.lives += 1
+            
+    def draw(self, screen):
+        pygame.draw.circle(screen, PINK, (int(self.x), int(self.y)), self.radius)
+            
+    
+            
+
+#Literally the first 6 enemies in the game.
+class EnemyBaby:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.speed = 3.5
+        self.radius = 10
+        self.hp = 10
+        self.score_value = 50
+        
+        #Tracks how long an enemy attacks (60 FPS)
+        self.timer = 0
 
         self.shot_timer = 0
         self.shot_delay = 120
 
     def update(self, enemy_bullets):
+        if self.y <= 300:
+            self.state = "enter"
+        elif self.y >= 300 and self.timer < 900:
+            self.state = "attack"
+        elif self.y >= 300 and self.timer > 900:
+            self.state = "leave"
+            
+        if self.state == "enter":
+            self.y += self.speed
+            self.shoot = False
+        elif self.state == "attack":
+            self.speed = 0
+            self.shoot = True
+            self.timer += 1
+        elif self.state == "leave":
+            self.speed = 3
+            if self.x <= 350:
+                self.x -= self.speed
+            elif self.x >= 350:
+                self.x += self.speed
+            self.shoot = True
+            
+            
+        if self.shoot == True:
+            if self.shot_timer > 0:
+                self.shot_timer -= 1
+                self.radius = 10
+            else:
+                self.radius = 11
+                dx = player.x - self.x
+                dy = player.y - self.y
 
-        self.x += self.speed
-        if self.x < 100 or self.x > 600:
-            self.speed *= -1
+                distance = math.hypot(dx, dy)
 
-        if self.shot_timer > 0:
-            self.shot_timer -= 1
-        else:
-            dx = player.x - self.x
-            dy = player.y - self.y
+                bullet_speed = 4
 
-            distance = math.hypot(dx, dy)
+                dx = (dx / distance) * bullet_speed
+                dy = (dy / distance) * bullet_speed
 
-            bullet_speed = 4
+                enemy_bullets.append(
+                    EnemyBullet(self.x, self.y, dx, dy)
+                )
 
-            dx = (dx / distance) * bullet_speed
-            dy = (dy / distance) * bullet_speed
+                self.shot_timer = self.shot_delay
+                
+    def on_death(self):
+        pass
 
-            enemy_bullets.append(
-                EnemyBullet(self.x, self.y, dx, dy)
-            )
-
-            self.shot_timer = self.shot_delay
+    def draw(self, screen):
+        pygame.draw.circle(screen, GREEN, (int(self.x), int(self.y)), self.radius)
         
+class EnemyStandard:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.speed = 2.5
+        self.radius = 10
+        self.hp = 15
+        self.score_value = 100
+        
+        #Tracks how long an enemy attacks (60 FPS)
+        self.timer = 0
+
+        self.shot_timer = 0
+        self.shot_delay = 120
+
+    def update(self, enemy_bullets):
+        if self.y <= 300:
+            self.state = "enter"
+        elif self.y >= 300 and self.timer < 600:
+            self.state = "attack"
+        elif self.y >= 300 and self.timer > 600:
+            self.state = "leave"
+            
+        if self.state == "enter":
+            self.y += self.speed
+            self.shoot = False
+        elif self.state == "attack":
+            self.speed = 0
+            self.shoot = True
+            self.timer += 1
+        elif self.state == "leave":
+            self.speed = 3
+            if self.x <= 350:
+                self.x -= self.speed
+            elif self.x >= 350:
+                self.x += self.speed
+            self.shoot = True
+            
+            
+        if self.shoot == True:
+            if self.shot_timer > 0:
+                self.shot_timer -= 1
+                self.radius = 10
+            else:
+                self.radius = 11
+                dx = player.x - self.x
+                dy = player.y - self.y
+
+                distance = math.hypot(dx, dy)
+
+                bullet_speed = 4
+
+                dx = (dx / distance) * bullet_speed
+                dy = (dy / distance) * bullet_speed
+
+                enemy_bullets.append(
+                    EnemyBullet(self.x, self.y, dx, dy)
+                )
+
+                self.shot_timer = self.shot_delay
+    
+    def on_death(self):
+        pass
+
+    def draw(self, screen):
+        pygame.draw.circle(screen, GREEN, (int(self.x), int(self.y)), self.radius)
+        
+class EnemyStandardBack:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.speed = 4
+        self.radius = 10
+        self.hp = 15
+        self.score_value = 100
+        
+        #Tracks how long an enemy attacks (60 FPS)
+        self.timer = 0
+
+        self.shot_timer = 0
+        self.shot_delay = 120
+
+    def update(self, enemy_bullets):
+        if self.y <= 250:
+            self.state = "enter"
+        elif self.y >= 250 and self.timer < 600:
+            self.state = "attack"
+        elif self.y >= 250 and self.timer > 600:
+            self.state = "leave"
+            
+        if self.state == "enter":
+            self.y += self.speed
+            self.shoot = False
+        elif self.state == "attack":
+            self.speed = 0
+            self.shoot = True
+            self.timer += 1
+        elif self.state == "leave":
+            self.speed = 3
+            if self.x <= 350:
+                self.x -= self.speed
+            elif self.x >= 350:
+                self.x += self.speed
+            self.shoot = True
+            
+            
+        if self.shoot == True:
+            if self.shot_timer > 0:
+                self.shot_timer -= 1
+            else:
+                self.radius = 11
+                dx = player.x - self.x
+                dy = player.y - self.y
+
+                distance = math.hypot(dx, dy)
+
+                bullet_speed = 4
+
+                dx = (dx / distance) * bullet_speed
+                dy = (dy / distance) * bullet_speed
+
+                enemy_bullets.append(
+                    EnemyBullet(self.x, self.y, dx, dy)
+                )
+
+                self.shot_timer = self.shot_delay
+    
+    def on_death(self):
+        pass
 
     def draw(self, screen):
         pygame.draw.circle(screen, GREEN, (int(self.x), int(self.y)), self.radius)
         
 # 3 is better than 1.      
 class EnemyBurst:
-    def __init__(self):
+    def __init__(self, x, y):
 
-        self.x = 350
-        self.y = 150
+        self.x = x
+        self.y = y
 
         self.speed = 2
         self.radius = 12
+        
+        self.timer = 0
 
-        self.hp = 30
+        self.hp = 25
         self.score_value = 250
 
         self.shot_timer = 0
@@ -223,8 +418,40 @@ class EnemyBurst:
         self.burst_shots_left = 3
         
     def update(self, enemy_bullets):
+        if self.y <= 300:
+            self.state = "enter"
+        elif self.y >= 300 and self.timer < 600:
+            self.state = "attack"
+        elif self.y >= 300 and self.timer > 600:
+            self.state = "leave"
+            
+        if self.state == "enter":
+            self.y += self.speed
+            self.shoot = False
+        elif self.state == "attack":
+            self.speed = 0
+            self.shoot = True
+            self.timer += 1
+        elif self.state == "leave":
+            self.speed = 2
+            if self.x < 350:
+                self.x -= self.speed
+            elif self.x > 350:
+                self.x += self.speed
+                
+            elif self.x == 350:
+                self.leave_direction = random.choice(["left", "right"])
 
-        self.x += self.speed
+                if self.leave_direction == "left":
+                    self.x -= self.speed
+
+                elif self.leave_direction == "right":
+                    self.x += self.speed
+            self.shoot = True
+            
+            
+        if self.shoot == True:
+            self.x += self.speed
 
         if self.x < 100 or self.x > 600:
             self.speed *= -1
@@ -256,25 +483,314 @@ class EnemyBurst:
             else:
                 self.shot_timer = self.attack_delay
                 self.burst_shots_left = 3
-            
+    
+    def on_death(self):
+        pass
+    
     def draw(self, screen):
         pygame.draw.circle(screen, CYAN, (int(self.x), int(self.y)), self.radius)
         
 
-# Sandwich spread, because you're toast.
-class EnemySpread:
-    def __init__(self):
-        self.x = 350
-        self.y = 400
-        self.speed = 3
-        self.radius = 14
-        self.hp = 20
-        self.score_value = 100
+class EnemyBurstBack:
+    def __init__(self, x, y):
+
+        self.x = x
+        self.y = y
+
+        self.speed = 2
+        self.radius = 12
+        
+        self.timer = 0
+
+        self.hp = 25
+        self.score_value = 250
 
         self.shot_timer = 0
-        self.shot_delay = 120
+
+        self.burst_delay = 5
+        self.attack_delay = 90
+
+        self.burst_shots_left = 3
         
-    def update(self, enemy_bullets):        
+    def update(self, enemy_bullets):
+        if self.y <= 200:
+            self.state = "enter"
+        elif self.y >= 200 and self.timer < 450:
+            self.state = "attack"
+        elif self.y >= 200 and self.timer > 450:
+            self.state = "leave"
+            
+        if self.state == "enter":
+            self.y += self.speed
+            self.shoot = False
+        elif self.state == "attack":
+            self.speed = 0
+            self.shoot = True
+            self.timer += 1
+        elif self.state == "leave":
+            self.speed = 2
+            if self.x < 350:
+                self.x -= self.speed
+            elif self.x > 350:
+                self.x += self.speed
+                
+            elif self.x == 350:
+                self.leave_direction = random.choice(["left", "right"])
+
+                if self.leave_direction == "left":
+                    self.x -= self.speed
+
+                elif self.leave_direction == "right":
+                    self.x += self.speed
+            self.shoot = True
+            
+            
+        if self.shoot == True:
+            self.x += self.speed
+
+        if self.x < 100 or self.x > 600:
+            self.speed *= -1
+
+        if self.shot_timer > 0:
+            self.shot_timer -= 1
+
+        else:
+
+            dx = player.x - self.x
+            dy = player.y - self.y
+
+            distance = math.hypot(dx, dy)
+
+            bullet_speed = 4
+
+            dx = (dx / distance) * bullet_speed
+            dy = (dy / distance) * bullet_speed
+
+            enemy_bullets.append(
+                EnemyBullet(self.x, self.y, dx, dy)
+            )
+
+            self.burst_shots_left -= 1
+
+            if self.burst_shots_left > 0:
+                self.shot_timer = self.burst_delay
+
+            else:
+                self.shot_timer = self.attack_delay
+                self.burst_shots_left = 3
+                
+    def on_death(self):
+        pass
+    
+    def draw(self, screen):
+        pygame.draw.circle(screen, CYAN, (int(self.x), int(self.y)), self.radius)
+        
+# 10 is better than 1 as well.    
+class EnemyBurstHard:
+    def __init__(self, x, y):
+
+        self.x = x
+        self.y = y
+
+        self.speed = 2
+        self.radius = 12
+        
+        self.timer = 0
+
+        self.hp = 30
+        self.score_value = 400
+
+        self.shot_timer = 0
+
+        self.burst_delay = 3
+        self.attack_delay = 90
+
+        self.burst_shots_left = 10
+        
+    def update(self, enemy_bullets):
+        if self.y <= 200:
+            self.state = "enter"
+        elif self.y >= 200 and self.timer < 450:
+            self.state = "attack"
+        elif self.y >= 200 and self.timer > 450:
+            self.state = "leave"
+            
+        if self.state == "enter":
+            self.y += self.speed
+            self.shoot = False
+        elif self.state == "attack":
+            self.speed = 0
+            self.shoot = True
+            self.timer += 1
+        elif self.state == "leave":
+            self.speed = 2
+            if self.x < 350:
+                self.x -= self.speed
+            elif self.x > 350:
+                self.x += self.speed
+                
+            elif self.x == 350:
+                self.leave_direction = random.choice(["left", "right"])
+
+                if self.leave_direction == "left":
+                    self.x -= self.speed
+
+                elif self.leave_direction == "right":
+                    self.x += self.speed
+            self.shoot = True
+            
+            
+        if self.shoot == True:
+
+            if self.x < 100 or self.x > 600:
+                self.speed *= -1
+
+            if self.shot_timer > 0:
+                self.shot_timer -= 1
+
+            else:
+
+                dx = player.x - self.x
+                dy = player.y - self.y
+
+                distance = math.hypot(dx, dy)
+
+                bullet_speed = 4
+
+                dx = (dx / distance) * bullet_speed
+                dy = (dy / distance) * bullet_speed
+
+                enemy_bullets.append(
+                    EnemyBullet(self.x, self.y, dx, dy)
+                )
+
+                self.burst_shots_left -= 1
+
+                if self.burst_shots_left > 0:
+                    self.shot_timer = self.burst_delay
+
+                else:
+                    self.shot_timer = self.attack_delay
+                    self.burst_shots_left = 10
+    
+    def on_death(self):
+        pass
+    
+    def draw(self, screen):
+        pygame.draw.circle(screen, CYAN, (int(self.x), int(self.y)), self.radius)
+        
+class EnemyBurstHardCorner:
+
+    def __init__(self, x, y):
+
+        self.x = x
+        self.y = y
+
+        self.radius = 12
+        self.hp = 30
+        if player.score < 5000:
+            self.score_value = 5000 - player.score
+        else:
+            self.score = 300
+
+        self.timer = 0
+
+        self.shot_timer = 0
+        self.burst_delay = 6
+        self.attack_delay = 120
+        self.burst_shots_left = 10
+
+        if self.x < 350:
+            self.speed = 1
+        else:
+            self.speed = -1
+
+        self.state = "enter"
+
+    def update(self, enemy_bullets):
+
+        self.timer += 1
+
+        if self.state == "enter":
+
+            self.x += 2 * self.speed
+
+            if self.speed == 1 and self.x >= 20:
+                self.state = "attack"
+
+            elif self.speed == -1 and self.x <= 680:
+                self.state = "attack"
+
+
+        elif self.state == "attack":
+            self.timer += 1
+
+            if self.timer > 1200:
+                self.state = "leave"
+
+            # Burst shooting
+            if self.shot_timer > 0:
+                self.shot_timer -= 1
+
+            else:
+
+                dx = player.x - self.x
+                dy = player.y - self.y
+
+                distance = math.hypot(dx, dy)
+
+                bullet_speed = 4
+
+                dx = (dx / distance) * bullet_speed
+                dy = (dy / distance) * bullet_speed
+
+                enemy_bullets.append(
+                    EnemyBullet(self.x, self.y, dx, dy)
+                )
+
+                self.burst_shots_left -= 1
+
+                if self.burst_shots_left > 0:
+                    self.shot_timer = self.burst_delay
+
+                else:
+                    self.shot_timer = self.attack_delay
+                    self.burst_shots_left = 10
+
+
+        elif self.state == "leave":
+
+            self.y += 5
+    
+    def on_death(self):
+        pass
+
+    def draw(self, screen):
+
+        pygame.draw.circle(
+            screen,
+            CYAN,
+            (int(self.x), int(self.y)),
+            self.radius
+        )
+        
+
+# Sandwich spread, because you're toast.
+class EnemySpreadDLeft:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.speed = 2
+        self.radius = 14
+        self.hp = 20
+        self.score_value = 500
+
+        self.shot_timer = 0
+        self.shot_delay = 180
+        
+    def update(self, enemy_bullets):    
+        self.x -= self.speed
+            
         if self.shot_timer > 0:
             self.shot_timer -= 1
 
@@ -295,15 +811,248 @@ class EnemySpread:
             for dx, dy in directions:
 
                 enemy_bullets.append(
-                    EnemyBullet(self.x, self.y, dx, dy, 10)
+                    EnemyBullet(self.x, self.y, dx, dy, 8)
                 )
 
             self.shot_timer = self.shot_delay
 
+    def on_death(self):
+        pass
         
         
     def draw(self, screen):
         pygame.draw.circle(screen, ORANGE, (int(self.x), int(self.y)), self.radius)
+        
+class EnemySpreadDRight:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.speed = 2
+        self.radius = 14
+        self.hp = 20
+        self.score_value = 500
+
+        self.shot_timer = 0
+        self.shot_delay = 180
+        
+    def update(self, enemy_bullets):    
+        self.x += self.speed
+            
+        if self.shot_timer > 0:
+            self.shot_timer -= 1
+
+        else:
+
+            directions = [
+                (0, -4),    # up
+                (0, 4),     # down
+                (-4, 0),    # left
+                (4, 0),     # right
+
+                (-3, -3),   # up-left
+                (3, -3),    # up-right
+                (-3, 3),    # down-left
+                (3, 3)      # down-right
+            ]
+
+            for dx, dy in directions:
+
+                enemy_bullets.append(
+                    EnemyBullet(self.x, self.y, dx, dy, 8)
+                )
+
+            self.shot_timer = self.shot_delay
+
+    def on_death(self):
+        pass  
+        
+    def draw(self, screen):
+        pygame.draw.circle(screen, ORANGE, (int(self.x), int(self.y)), self.radius)
+        
+        
+class EnemySpreadDDown:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.speed = 1.5
+        self.radius = 14
+        self.hp = 30
+        self.score_value = 500
+        self.timer = 0
+
+        self.shot_timer = 0
+        self.shot_delay = 150
+        
+    def update(self, enemy_bullets):    
+        if self.y <= 300:
+            self.state = "enter"
+        elif self.y >= 300 and self.timer < 600:
+            self.state = "attack"
+        elif self.y >= 300 and self.timer > 600:
+            self.state = "leave"
+            
+        if self.state == "enter":
+            self.y += self.speed
+            self.shoot = False
+        elif self.state == "attack":
+            self.speed = 0
+            self.shoot = True
+            self.timer += 1
+        elif self.state == "leave":
+            self.speed = 2
+            if self.x < 350:
+                self.x -= self.speed
+            elif self.x > 350:
+                self.x += self.speed
+                
+            elif self.x == 350:
+                self.leave_direction = random.choice(["left", "right"])
+
+                if self.leave_direction == "left":
+                    self.x -= self.speed
+
+                elif self.leave_direction == "right":
+                    self.x += self.speed
+            self.shoot = True
+            
+            
+        if self.shoot == True:
+            
+            if self.shot_timer > 0:
+                self.shot_timer -= 1
+
+            else:
+
+                directions = [
+                    (0, -4),    # up
+                    (0, 4),     # down
+                    (-4, 0),    # left
+                    (4, 0),     # right
+
+                    (-3, -3),   # up-left
+                    (3, -3),    # up-right
+                    (-3, 3),    # down-left
+                    (3, 3)      # down-right
+                ]
+
+                for dx, dy in directions:
+
+                    enemy_bullets.append(
+                        EnemyBullet(self.x, self.y, dx, dy, 8)
+                    )
+
+                self.shot_timer = self.shot_delay
+
+    def on_death(self):
+        pass
+    
+    def draw(self, screen):
+        pygame.draw.circle(screen, ORANGE, (int(self.x), int(self.y)), self.radius)
+
+# =====================
+# BOSS
+# =====================
+class Boss:
+
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.speed = 0.5
+        self.radius = 45
+        self.shot_timer = 0
+        self.shot_delay = 60
+        self.burst_timer = 0
+        self.burst_delay = 10
+        self.burst_attack_delay = 150
+        self.burst_left = 5
+
+        self.phase = "enter"
+        self.phase_timer = 0
+
+        self.hp = 2400
+        self.max_hp = 2400
+        
+        self.score_value = 10000
+        
+    
+    def update(self, enemy_bullet):
+        
+        if self.phase == "enter":
+            self.speed = 2
+            self.y += self.speed
+            if self.y >= 100:
+                self.phase = "attack1"
+                self.speed = 0.5
+                self.shoot1 = True
+                
+        if self.phase == "attack1":
+            self.x += self.speed
+            if self.x < 200 or self.x > 500:
+                 self.speed *= -1
+            
+            if self.hp <= self.max_hp*0.75:
+                self.shoot1 = False
+
+            
+
+            
+            if self.shoot1 == True:
+                if self.shot_timer > 0:
+                    self.shot_timer -= 1
+                
+                else:
+                    dx = player.x - self.x
+                    dy = player.y - self.y
+
+                    distance = math.hypot(dx, dy)
+
+                    bullet_speed = 4
+
+                    dx = (dx / distance) * bullet_speed
+                    dy = (dy / distance) * bullet_speed
+
+                    enemy_bullets.append(
+                        EnemyBullet(self.x, self.y, dx, dy)
+                    )
+
+                    self.shot_timer = self.shot_delay
+                    
+                if self.burst_timer > 0:
+                    self.burst_timer -= 1
+
+                else:
+
+                    dx = player.x - self.x
+                    dy = player.y - self.y
+
+                    distance = math.hypot(dx, dy)
+
+                    bullet_speed = 5
+
+                    dx = (dx / distance) * bullet_speed
+                    dy = (dy / distance) * bullet_speed
+
+                    enemy_bullets.append(
+                        EnemyBullet(self.x, self.y, dx, dy)
+                    )
+
+                    self.burst_left -= 1
+
+                    if self.burst_left > 0:
+                        self.burst_timer = self.burst_delay
+
+                    else:
+                        self.burst_timer = self.burst_attack_delay
+                        self.burst_left = 5
+                    
+                
+            
+    def on_death(self):
+        game_state = "clear"
+        
+    def draw(self, screen):
+        pygame.draw.circle(screen,WHITE,(int(self.x), int(self.y)),self.radius + 2,2)
+        pygame.draw.circle(screen, PURPLE, (int(self.x), int(self.y)), self.radius)
 
 
 # =====================
@@ -313,14 +1062,17 @@ class EnemySpread:
 player = Player()
 player_bullets = []
 enemy_bullets = []
-enemies = [EnemyDummy(), EnemyStandard(), EnemyBurst(), EnemySpread()]
+enemies = []
 
+stage_timer = 6000
 def reset_game():
 
     global player
     global player_bullets
     global enemy_bullets
     global enemies
+    global stage_timer
+    stage_timer = 0
 
     player = Player()
 
@@ -328,10 +1080,7 @@ def reset_game():
 
     enemy_bullets = []
 
-    enemies = [
-        EnemyDummy(),
-        EnemyStandard()
-    ]
+    enemies = []
 
 
 # =====================
@@ -390,6 +1139,9 @@ while running:
         text_focus = font.render(f"Hold Shift for more precise movement",True,WHITE)
         screen.blit(text_focus, (100, 360))
         
+        text_focus = font.render(f"ESC to pause the game",True,WHITE)
+        screen.blit(text_focus, (100, 440))
+        
         text = font.render("→ or D to go to next page", True, WHITE)
         screen.blit(text, (300, 600))
 
@@ -426,6 +1178,55 @@ while running:
             game_state = "menu"
         if keys[pygame.K_LEFT] or keys[pygame.K_a]:
             game_state = "instructions1"
+    
+    # =====================
+    # PAUSE
+    # =====================
+    elif game_state == "pause":
+        if keys[pygame.K_z]:
+            game_state = "gameplay"
+        if keys[pygame.K_x]:
+            game_state = "menu"
+            
+        
+
+        for bullet in player_bullets:
+            bullet.draw(screen)
+
+        for bullet in enemy_bullets:
+            bullet.draw(screen)
+
+        for enemy in enemies:
+            enemy.draw(screen)
+
+        player.draw(screen)
+        
+        pygame.draw.rect(screen, (20, 20, 20), (700, 0, 300, HEIGHT))
+
+        player.draw(screen)
+
+        score_text = font.render(f"Score: {player.score}", True, WHITE)
+        
+        lives_text = font.render(f"Lives: {player.lives}", True, WHITE)
+        
+        onslaught_text = font.render(f"Onslaught: N/A", True, WHITE)
+        
+        time_text = font.render(f"Time: {stage_timer / 60}", True, WHITE)
+
+        screen.blit(score_text, (720, 40))
+        screen.blit(lives_text, (720, 120))
+        screen.blit(onslaught_text, (720, 160))
+        screen.blit(time_text, (720, 380))
+
+        
+        text = fontbig.render("Paused", True, WHITE)
+        screen.blit(text, (350, 200))
+                
+        text = font.render("Unpause: Z", True, WHITE)
+        screen.blit(text, (350, 400))
+            
+        text = font.render("Quit: X", True, WHITE)
+        screen.blit(text, (350, 460))
         
     # =====================
     # GAME OVER SCREEN
@@ -449,16 +1250,125 @@ while running:
     # GAMEPLAY
     # =====================
     elif game_state == "gameplay":
+        stage_timer += 1
+        if stage_timer >= 6300:
+            BossFight1 = True
+        else:
+            BossFight1 = False
+        
+        if stage_timer == 120:
+            enemies.append(EnemyBaby(100, -20))
+            enemies.append(EnemyBaby(600, -20))
+            
+        if stage_timer == 600:
+            enemies.append(EnemyBaby(200, -20))
+            enemies.append(EnemyBaby(500, -20))
+            
+        if stage_timer == 900:
+             enemies.append(EnemyBurst(350, -20))
+             
+        if stage_timer == 1080:
+            enemies.append(EnemyStandard(150, -20))
+        if stage_timer == 1100:
+            enemies.append(EnemyStandard(600, -20))
         player.update(keys)
+        
+        if stage_timer == 1500:
+            enemies.append(EnemyStandardBack(300, -20))
+        if stage_timer == 1520:
+            enemies.append(EnemyStandardBack(400, -20))
+            
+        if stage_timer == 1740:
+            enemies.append(EnemyBurst(180, -20))
+            
+        if stage_timer == 1920:
+            enemies.append(EnemySpreadDLeft(720, 250))
+            
+        if stage_timer == 2100:
+            enemies.append(EnemyBurst(520, -20))
+        if stage_timer == 2280:
+            enemies.append(EnemySpreadDRight(-20, 200))
+            
+        if stage_timer == 2640:
+            enemies.append(EnemyStandardBack(200, -20))
+            enemies.append(EnemyStandardBack(500, -20))
+            
+        if stage_timer == 2670:
+            enemies.append(EnemyBurstHard(200, -20))
+            enemies.append(EnemyBurstHard(500, -20))
+            
+        if stage_timer == 3300:
+            enemies.append(EnemySpreadDRight(-20, 300))
+            enemies.append(EnemySpreadDLeft(720, 300))
+            
+        if stage_timer == 3600:
+            enemies.append(EnemyStandard(240, -20))
+            enemies.append(EnemyStandard(460, -20))
+        
+        if stage_timer == 3720:
+            enemies.append(EnemyStandardBack(180, -20))
+            enemies.append(EnemyStandardBack(520, -20))
+            
+        if stage_timer == 3900:
+            enemies.append(EnemySpreadDDown(350, -20))
+            enemies.append(EnemyBurstHard(180, -20))
+            enemies.append(EnemyBurstHard(520, -20))
+            
+        if stage_timer == 4500:
+            enemies.append(EnemyBurstHardCorner(20, 780))
+            enemies.append(EnemyBurstHardCorner(720, 780))
+            
+        if stage_timer == 4800:
+            enemies.append(EnemyStandard(240, -20))
+            enemies.append(EnemyStandard(460, -20))
+            enemies.append(EnemyStandardBack(180, -20))
+            enemies.append(EnemyStandardBack(520, -20))
+            
+        if stage_timer == 4860:
+            enemies.append(EnemySpreadDLeft(720, 50))
+        if stage_timer == 4920:
+            enemies.append(EnemySpreadDLeft(720, 50))
+            
+        if stage_timer == 5640:
+            enemies.append(EnemyRecovery(-20, 200))
+            
+        if stage_timer == 6300:
+            enemies.append(Boss(350, -20))
+            stage_timer += 0
+            BossFight1 = True
+            
+        
+            
+            
+        #pausing
+        if keys[pygame.K_ESCAPE]:
+            game_state = "pause"
+            
 
         # shooting
-        if keys[pygame.K_z] and player.shot_timer == 0:
+        if keys[pygame.K_z] and player.shot_timer == 0 and player.score <5000:
             player_bullets.append(PlayerBullet(player.x, player.y))
             player.shot_timer = player.shot_delay
+            
+        if keys[pygame.K_z] and player.shot_timer == 0 and player.score >=5000:
+            player_bullets.append(PlayerBullet(player.x + 4, player.y))
+            player_bullets.append(PlayerBullet(player.x - 4, player.y))
+            player.shot_timer = player.shot_delay
+            
+            
 
         # enemies
         for enemy in enemies:
             enemy.update(enemy_bullets)
+            
+            if (
+                enemy.x < -25
+                or enemy.x > WIDTH + 25
+                or enemy.y < -25
+                or enemy.y > HEIGHT + 25
+            ):
+                enemies.remove(enemy)
+                continue
 
         # player bullets
         for bullet in player_bullets[:]:
@@ -476,6 +1386,7 @@ while running:
                         player_bullets.remove(bullet)
 
                 if enemy.hp <= 0:
+                    enemy.on_death()
                     enemies.remove(enemy)
                     player.score += enemy.score_value
 
@@ -485,7 +1396,7 @@ while running:
             
             if (
                 bullet.x < -50
-                or bullet.x > WIDTH + 50
+                or bullet.x > WIDTH -100
                 or bullet.y < -50
                 or bullet.y > HEIGHT + 50
             ):
@@ -558,12 +1469,30 @@ while running:
         
         lives_text = font.render(f"Lives: {player.lives}", True, WHITE)
         
-        onslaught_text = font.render(f"Onslaught:", True, WHITE)
+        onslaught_text = font.render(f"Onslaught: N/A", True, WHITE)
+        
+      
+      
+        #For developer purposes
+        time_text = font.render(f"Time: {stage_timer / 60}", True, WHITE)
 
         screen.blit(score_text, (720, 40))
         screen.blit(lives_text, (720, 120))
         screen.blit(onslaught_text, (720, 160))
+        
+        screen.blit(time_text, (720, 380))
 
+    elif game_state == "clear":
+        reset_game()
+        if keys[pygame.K_z]:
+                game_state = "menu"
+        text = fontbig.render("You've beaten the game!", True, WHITE)
+        screen.blit(text, (200, 200))
+
+        text = font.render("Main menu: Z", True, WHITE)
+        screen.blit(text, (300, 300))
+        
+        
     pygame.display.flip()
     clock.tick(FPS)
 
