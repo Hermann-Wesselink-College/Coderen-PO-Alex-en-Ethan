@@ -34,7 +34,10 @@ running = True
 # Game starts at the menu
 game_state = "menu"
 menu_timer = 0 # (makes one piece of text blink)
-quirk = random.choice(["sprites", "BPM", "Erin", "genre", "tape", "Q", "enemies"])
+quirk = random.choice(["sprites", "BPM", "Erin",
+                       "genre", "tape", "Q",
+                       "enemies", "Cirno", "grazing",
+                       "shmup", "easy mode", "boss HP"])
 
 stage_timer = 0
 
@@ -1354,8 +1357,10 @@ def reset_game():
     global stage_timer
     global reset_guard_timer
     global quirk
-    quirk = random.choice(["sprites", "BPM", "Erin", "genre", "tape", "Q", "enemies"])
-    stage_timer = 0
+    quirk = random.choice(["sprites", "BPM", "Erin",
+                       "genre", "tape", "Q",
+                       "enemies", "Cirno", "grazing",
+                       "shmup", "easy mode", "boss HP"])
 
     player = Player()
 
@@ -1441,6 +1446,7 @@ while running:
         text = font.render("Press X for instructions", True, WHITE)
         screen.blit(text, (600, 40))
         
+        # Silly text under the title that changes each time the menu is accessed
         
         if quirk ==  "sprites":
             quirktext = fonttiny.render("(sprites not included)", True, WHITE)
@@ -1456,6 +1462,21 @@ while running:
             quirktext = fonttiny.render("Clicking Q used to kill the player. (Hopefully patched)", True, WHITE)
         elif quirk == "enemies":
             quirktext = fonttiny.render("Over half of the code is just enemy classes. Don't laugh.", True, WHITE)
+        elif quirk == "Cirno":
+            quirktext = fonttiny.render("Cirno's Perfect Coding Class.", True, WHITE)
+        elif quirk == "grazing":
+            quirktext = fonttiny.render("Grazing now rewards 200% more points! #clickbait", True, WHITE)
+        elif quirk == "shmup":
+            quirktext = fonttiny.render("shmup  :)", True, WHITE)
+        elif quirk == "easy mode":
+            quirktext = fonttiny.render("Maybe the true Easy Mode was the friends we've made along the way.", True, WHITE)
+        elif quirk == "boss HP":
+            quirktext = fonttiny.render("Boss HP reduced for legal reasons.", True, WHITE)
+
+            
+
+
+        
             
             
             
