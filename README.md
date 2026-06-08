@@ -11,6 +11,13 @@ clock = pygame.time.Clock()
 #sounds
 death_sound = pygame.mixer.Sound("sounds/death.wav")
 graze_sound = pygame.mixer.Sound("sounds/graze.wav")
+hit_sound = pygame.mixer.Sound("sounds/hit.wav")
+warning_sound = pygame.mixer.Sound("sounds/warning.wav")
+
+
+death_sound.set_volume(0.4)
+
+hit_sound.set_volume(0.5)
 
 # Screen borders and FPS (frames per second)
 WIDTH = 1000
@@ -19,13 +26,17 @@ FPS = 60
 
  # Funky pygame things. Looked this thing up.
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Wonderland Project") #Filler name, we still don't know what to name it.
+pygame.display.set_caption("Wonderland Project") 
 
 # yes
 running = True
 
 # Game starts at the menu
 game_state = "menu"
+menu_timer = 0 # (makes one piece of text blink)
+quirk = random.choice(["sprites", "BPM", "Erin", "genre", "tape", "Q", "enemies"])
+
+stage_timer = 0
 
 # Prevents people from skipping the victory screen, because that's rude.
 clear_guard_timer = 0
@@ -44,7 +55,9 @@ PURPLE = (60, 10, 70)
 # Font, and bigger font.
 font = pygame.font.SysFont("consolas", 28)
 fontbig = pygame.font.SysFont("consolas", 56)
+fonttiny = pygame.font.SysFont("consolas", 18)
 title_font = pygame.font.SysFont("trebuchetms", 80)
+logo_font = pygame.font.SysFont("trebuchetms", 40)
 
 
 # =====================
@@ -90,9 +103,7 @@ class Player:
         if keys[pygame.K_DOWN] or keys[pygame.K_s]:
             dy += 1
             
-        #debug purposes, removed in finished version, hopefully.
-        if keys[pygame.K_q]:
-            self.lives = 0
+       
 
 
         # If both x and y have a difference greater than 0 in any given frame,(fancy name for diagonol movement.
@@ -120,8 +131,6 @@ class Player:
     # Draw function... draws.
     def draw(self, screen):
         
-        # You turn black when invincible.
-        pygame.draw.circle(screen, BLACK, (int(self.x), int(self.y)), self.visible_radius)
         
         # keys is much easier to say than keys = pygame.key.get_pressed()
         # Try it out loud.
@@ -179,6 +188,7 @@ class EnemyBullet:
         
 
 
+# Enemy (incl. boss) code ends at about line 1300. This isn't funny.
 # =====================
 # ENEMIES
 # =====================
@@ -1014,6 +1024,7 @@ class Boss:
         self.invulnerable = False
         
         self.final_timer = 0 # Used to handle post-death timings.
+        self.transition_timer = 0
         
         self.score_value = 100000
         
@@ -1041,10 +1052,14 @@ class Boss:
             self.phase = "desperation"
             
         elif self.hp <= 10 and self.phase != "final":
+            if self.transition_timer < 1:
+                warning_sound.play()
+            self.transition_timer += 1
             self.invulnerable = True
-            death_sound.play()
-            self.phase = "final"
-            self.final_timer = 0
+            if self.transition_timer == 60:
+                death_sound.play()
+                self.phase = "final"
+                self.final_timer = 0
             
         if self.phase == "attack1":
             if self.x < 200 or self.x > 500:
@@ -1330,7 +1345,6 @@ player_bullets = []
 enemy_bullets = []
 enemies = []
 
-stage_timer = 0
 def reset_game():
 
     global player
@@ -1338,6 +1352,9 @@ def reset_game():
     global enemy_bullets
     global enemies
     global stage_timer
+    global reset_guard_timer
+    global quirk
+    quirk = random.choice(["sprites", "BPM", "Erin", "genre", "tape", "Q", "enemies"])
     stage_timer = 0
 
     player = Player()
@@ -1347,6 +1364,7 @@ def reset_game():
     enemy_bullets = []
 
     enemies = []
+    
 
 
 # =====================
@@ -1355,7 +1373,7 @@ def reset_game():
 
 while running:
 
-    screen.fill(BLACK)
+    screen.fill(BLACK) # Covers everything that happened in the previous frame.
     keys = pygame.key.get_pressed()
 
     # =====================
@@ -1371,6 +1389,7 @@ while running:
         if game_state == "menu":
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_z or event.key == pygame.K_o:
+                    reset_game()
                     game_state = "gameplay"
 
                 if event.key == pygame.K_x or event.key == pygame.K_p:
@@ -1408,17 +1427,39 @@ while running:
     # =====================
 
     if game_state == "menu":
+        menu_timer += 1
         
         shadow = title_font.render("Wonderland Project", True, GREY)
         screen.blit(shadow, (122, 252))
         title = title_font.render("Wonderland Project", True, WHITE)
         screen.blit(title, (120, 250))
         
-        text = font.render("Press Z to start", True, WHITE)
-        screen.blit(text, (350, 400))
+        if menu_timer % 40 < 30:
+            text = font.render("Press Z to start", True, WHITE)
+            screen.blit(text, (370, 500))
         
         text = font.render("Press X for instructions", True, WHITE)
         screen.blit(text, (600, 40))
+        
+        
+        if quirk ==  "sprites":
+            quirktext = fonttiny.render("(sprites not included)", True, WHITE)
+        elif quirk == "BPM":
+            quirktext = fonttiny.render("120 BPM! (Bullets per minute, btw)", True, WHITE)
+        elif quirk == "Erin":
+            quirktext = fonttiny.render("Help me Erin! With my spaghetti code.", True, WHITE)
+        elif quirk == "genre":
+            quirktext = fonttiny.render("Not a bullet heaven.", True, WHITE)
+        elif quirk == "tape":
+            quirktext = fonttiny.render("Held together by tape and dreams.", True, WHITE)
+        elif quirk == "Q":
+            quirktext = fonttiny.render("Clicking Q used to kill the player. (Hopefully patched)", True, WHITE)
+        elif quirk == "enemies":
+            quirktext = fonttiny.render("Over half of the code is just enemy classes. Don't laugh.", True, WHITE)
+            
+            
+            
+        screen.blit(quirktext, ( 180, 350))
 
     # =====================
     # INSTRUCTIONS
@@ -1494,8 +1535,8 @@ while running:
             if keys[pygame.K_z]:
                 game_state = "gameplay"
         if keys[pygame.K_x]:
-            game_state = "menu"
             reset_game()
+            game_state = "menu"
             
         # Draws everything happening on-screen every frame.
         # But since nothing's updating everything's paused.
@@ -1521,14 +1562,14 @@ while running:
         
         lives_text = font.render(f"Lives: {player.lives}", True, WHITE)
         
-        onslaught_text = font.render(f"Onslaught: N/A", True, WHITE)
+        # onslaught_text = font.render(f"Onslaught: N/A", True, WHITE)
         
         time_text = font.render(f"Time: {stage_timer / 60}", True, WHITE)
 
         screen.blit(score_text, (720, 40))
         screen.blit(lives_text, (720, 120))
         screen.blit(onslaught_text, (720, 160))
-        screen.blit(time_text, (720, 380))
+        # screen.blit(time_text, (720, 380))
 
         
         text = fontbig.render("Paused", True, WHITE)
@@ -1552,6 +1593,7 @@ while running:
             if keys[pygame.K_z]:
                 game_state = "gameplay"
         if keys[pygame.K_x]:
+            reset_game()
             game_state = "menu"
             
         text = fontbig.render("So like, you died for reals." , True, WHITE) # Truth Nuke.
@@ -1746,13 +1788,15 @@ while running:
                     player.lives -= 1
                     player.invincible_timer = player.invincible_length
                     hitless = False # Probably unused, since there's no achievements or dialogue.
+                    if player.lives > 0:
+                        hit_sound.play()
                 enemy_bullets.remove(bullet) # Removes the possibility of somehow getting hit by the same bullet twice.
                 
             # This distance checks if a bullet has already been grazed.
             # If it isn't, you get points.
             # the print() function was used for testing purposes.
             elif distance < graze_distance and not bullet.grazed:
-                player.score += 5
+                player.score += 15
                 graze_sound.play()
                 bullet.grazed = True
                 print("Graze!")
@@ -1767,6 +1811,8 @@ while running:
                 if not hasattr(enemy, "invulnerable") or not enemy.invulnerable:
                     if player.invincible_timer == 0:
                         player.lives -= 1
+                        if player.lives > 0:
+                            hit_sound.play()
                         player.invincible_timer = player.invincible_length
                         hitless = False
         
@@ -1805,20 +1851,26 @@ while running:
         
         onslaught_text = font.render(f"Onslaught: N/A", True, WHITE)
         
+        logo_text1 = logo_font.render("Wonderland", True, WHITE)
+        logo_text2 = logo_font.render("Project", True, WHITE)
+        
+        
       
       
-        #For developer purposes
+        #  For developer purposes
         time_text = font.render(f"Time: {stage_timer / 60}", True, WHITE)
 
         screen.blit(score_text, (720, 40))
         screen.blit(lives_text, (720, 120))
-        screen.blit(onslaught_text, (720, 160))
+        screen.blit(logo_text1, (740, 600))
+        screen.blit(logo_text2, (780, 640))
+        # screen.blit(onslaught_text, (720, 160))
         
-        screen.blit(time_text, (720, 380))
+        # screen.blit(time_text, (720, 380))
     
 
     # =====================
-    # CLEAR MENU 
+    # CLEAR
     # =====================
 
     elif game_state == "clear":
@@ -1827,6 +1879,7 @@ while running:
             if keys[pygame.K_z]:
                     game_state = "menu"
                     reset_game()
+                    
         text = fontbig.render("You've beaten the game!", True, WHITE)
         screen.blit(text, (140, 200))
 
